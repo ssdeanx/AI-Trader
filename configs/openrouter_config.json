@@ -1,0 +1,50 @@
+{
+  "agent_type": "BaseAgent",
+  "market": "us",
+  "provider": "openrouter",
+  "date_range": {
+    "init_date": "2025-10-01",
+    "end_date": "2025-10-30"
+  },
+  "models": [
+    {
+      "name": "claude-3.5-sonnet",
+      "basemodel": "anthropic/claude-3.5-sonnet",
+      "signature": "claude-3.5-sonnet",
+      "enabled": true
+    },
+    {
+      "name": "gpt-4o",
+      "basemodel": "openai/gpt-4o",
+      "signature": "gpt-4o",
+      "enabled": false
+    },
+    {
+      "name": "deepseek-chat",
+      "basemodel": "deepseek/deepseek-chat",
+      "signature": "deepseek-chat",
+      "enabled": false
+    },
+    {
+      "name": "gemini-pro",
+      "basemodel": "google/gemini-pro-1.5",
+      "signature": "gemini-pro",
+      "enabled": false
+    },
+    {
+      "name": "llama-3.3-70b",
+      "basemodel": "meta-llama/llama-3.3-70b-instruct",
+      "signature": "llama-3.3-70b",
+      "enabled": false
+    }
+  ],
+  "agent_config": {
+    "max_steps": 30,
+    "max_retries": 3,
+    "base_delay": 1.0,
+    "initial_cash": 10000.0
+  },
+  "log_config": {
+    "log_path": "./data/agent_data"
+  }
+}

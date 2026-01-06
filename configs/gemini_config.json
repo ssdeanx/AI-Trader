@@ -1,0 +1,32 @@
+{
+  "agent_type": "BaseAgent",
+  "market": "us",
+  "provider": "google",
+  "date_range": {
+    "init_date": "2025-10-01",
+    "end_date": "2025-10-30"
+  },
+  "models": [
+    {
+      "name": "gemini-2.0-flash",
+      "basemodel": "gemini-2.0-flash-exp",
+      "signature": "gemini-2.0-flash",
+      "enabled": true
+    },
+    {
+      "name": "gemini-1.5-pro",
+      "basemodel": "gemini-1.5-pro",
+      "signature": "gemini-1.5-pro",
+      "enabled": false
+    }
+  ],
+  "agent_config": {
+    "max_steps": 30,
+    "max_retries": 3,
+    "base_delay": 1.0,
+    "initial_cash": 10000.0
+  },
+  "log_config": {
+    "log_path": "./data/agent_data"
+  }
+}
