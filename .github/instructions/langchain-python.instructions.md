@@ -161,7 +161,7 @@ Key methods include:
 
 Commonly supported parameters (provider-dependent):
 
-- `model`: model identifier (eg. `gpt-4o`, `gpt-3.5-turbo`).
+- `model`: model identifier (eg. `gpt-4o`, `gpt-5`, `gemini-2.5-flash-lite`, `gemini-2.5-flash`, `gemini-3-flash`, `gemini-3-pro`).
 - `temperature`: randomness control (0.0 deterministic — 1.0 creative).
 - `timeout`: seconds to wait before canceling.
 - `max_tokens`: response token limit.

@@ -16,11 +16,12 @@ from dotenv import load_dotenv
 from langchain.agents import create_agent
 from langchain_core.globals import set_verbose, set_debug
 from langchain_core.messages import AIMessage
+from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.utils.function_calling import convert_to_openai_tool
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from langchain_openai import ChatOpenAI
 from langchain_google_genai import ChatGoogleGenerativeAI
-from agent.shared.llm_wrappers import DeepSeekChatOpenAI
+from agent.shared.llm_wrappers import ChatModelFactory
 
 # Best-effort import for a console/stdout callback handler across LangChain versions
 import importlib
@@ -43,164 +44,6 @@ for module_path, attr in [
 
 project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, project_root)
-
-
-class DeepSeekChatOpenAI(ChatOpenAI):
-    """
-    Custom ChatOpenAI wrapper for DeepSeek API compatibility.
-    Handles the case where DeepSeek returns tool_calls.args as JSON strings instead of dicts.
-    """
-
-    def _create_message_dicts(self, messages: list, stop: Optional[list] = None) -> list:
-        """Override to handle response parsing. Safely delegate to parent if available."""
-        # Some versions of ChatOpenAI may not expose _create_message_dicts as a callable attribute.
-        # Use the ChatOpenAI class attribute and call it explicitly with self to avoid issues where
-        # getattr(super(), ...) may return non-callable descriptors in some environments.
-        parent_func = getattr(ChatOpenAI, "_create_message_dicts", None)
-        if parent_func is not None:
-            try:
-                # Prefer calling the class implementation explicitly as it avoids descriptor binding issues
-                try:
-                    result = ChatOpenAI._create_message_dicts(self, messages, stop)  # type: ignore[attr-defined]
-                except Exception:
-                    # Fallback: try bound instance method if available
-                    instance_method = getattr(self, "_create_message_dicts", None)
-                    if callable(instance_method):
-                        result = instance_method(messages, stop)
-                    else:
-                        # Last resort: try calling the retrieved attribute directly if it's callable
-                        if callable(parent_func):
-                            result = parent_func(self, messages, stop)
-                        else:
-                            raise TypeError("_create_message_dicts not callable on ChatOpenAI")
-
-                if isinstance(result, list):
-                    return result
-                try:
-                    return list(result)  # type: ignore[arg-type]
-                except Exception:
-                    # Fallback to empty list if conversion fails
-                    return []
-            except Exception:
-                # If calling parent fails for any reason, fall back to alternative implementations
-                pass
-
-        # Try a public alternative if present
-        public_func = getattr(ChatOpenAI, "create_message_dicts", None)
-        if public_func is not None:
-            try:
-                # Call the function on the class directly to avoid issues where getattr returns
-                # a non-callable descriptor (e.g., property) or other unexpected types.
-                result = ChatOpenAI.create_message_dicts(self, messages, stop)  # type: ignore[attr-defined]
-                if isinstance(result, list):
-                    return result
-                try:
-                    return list(result)  # type: ignore[arg-type]
-                except Exception:
-                    # Fallback to an empty list if conversion fails
-                    return []
-            except Exception:
-                pass
-
-        # Fallback: construct simple message dicts from provided messages
-        message_dicts = []
-        for m in messages:
-            if isinstance(m, dict):
-                message_dicts.append(m)
-            elif hasattr(m, "dict") and callable(getattr(m, "dict")):
-                message_dicts.append(m.dict())
-            else:
-                message_dicts.append({
-                    "role": getattr(m, "role", None),
-                    "content": getattr(m, "content", str(m)),
-                })
-        return message_dicts
-
-    def _generate(self, messages: list, stop: Optional[list] = None, *args, **kwargs):
-        """Override generation to fix tool_calls format in responses"""
-        # Call parent's generate method
-        result = super()._generate(messages, stop, *args, **kwargs)
-
-        # Fix tool_calls format in the generated messages
-        for generation in result.generations:
-            for gen in generation:
-                # gen may be an object with 'message' attribute or a tuple/list where the first element is the message
-                message_obj = None
-                # Prefer explicit getattr checks to satisfy static type checkers (gen may be a tuple)
-                message_candidate = getattr(gen, "message", None)
-                if message_candidate is not None:
-                    message_obj = message_candidate
-                elif isinstance(gen, (list, tuple)) and len(gen) > 0:
-                    candidate = gen[0]
-                    # candidate might itself be a message-like object or a dict
-                    if getattr(candidate, "additional_kwargs", None) is not None or getattr(candidate, "content", None) is not None:
-                        message_obj = candidate
-                    else:
-                        message_obj = getattr(candidate, "message", None)
-
-                if message_obj:
-                    tool_calls = None
-                    # message_obj may be a dict (message dict) or an object with attribute 'additional_kwargs'
-                    if isinstance(message_obj, dict):
-                        tool_calls = message_obj.get("additional_kwargs", {}).get("tool_calls")
-                    elif not isinstance(message_obj, str) and hasattr(message_obj, "additional_kwargs"):
-                        additional_kwargs = getattr(message_obj, "additional_kwargs", None)
-                        if isinstance(additional_kwargs, dict):
-                            tool_calls = additional_kwargs.get("tool_calls")
-                    if tool_calls:
-                        for tool_call in tool_calls:
-                            if "function" in tool_call and "arguments" in tool_call["function"]:
-                                args = tool_call["function"]["arguments"]
-                                # If arguments is a string, parse it
-                                if isinstance(args, str):
-                                    try:
-                                        tool_call["function"]["arguments"] = json.loads(args)
-                                    except json.JSONDecodeError:
-                                        pass  # Keep as string if parsing fails
-
-        return result
-
-    async def _agenerate(self, messages: list, stop: Optional[list] = None, *args, **kwargs):
-        """Override async generation to fix tool_calls format in responses"""
-        # Call parent's async generate method
-        result = await super()._agenerate(messages, stop, *args, **kwargs)
-
-        # Fix tool_calls format in the generated messages
-        for generation in result.generations:
-            for gen in generation:
-                # Safely extract message object (gen may be a message-like object or a tuple/list)
-                message_obj = None
-                message_candidate = getattr(gen, "message", None)
-                if message_candidate is not None:
-                    message_obj = message_candidate
-                elif isinstance(gen, (list, tuple)) and len(gen) > 0:
-                    candidate = gen[0]
-                    # candidate might itself be a message-like object or a dict
-                    if getattr(candidate, "additional_kwargs", None) is not None or getattr(candidate, "content", None) is not None:
-                        message_obj = candidate
-                    else:
-                        message_obj = getattr(candidate, "message", None)
-
-                if message_obj and getattr(message_obj, "additional_kwargs", None):
-                    # Safely retrieve additional_kwargs and validate its type to avoid attribute errors
-                    additional_kwargs = getattr(message_obj, "additional_kwargs", None)
-                    if isinstance(additional_kwargs, dict):
-                        tool_calls = additional_kwargs.get("tool_calls")
-                    else:
-                        tool_calls = None
-                    if tool_calls:
-                        for tool_call in tool_calls:
-                            if "function" in tool_call and "arguments" in tool_call["function"]:
-                                args = tool_call["function"]["arguments"]
-                                # If arguments is a string, parse it
-                                if isinstance(args, str):
-                                    try:
-                                        tool_call["function"]["arguments"] = json.loads(args)
-                                    except json.JSONDecodeError:
-                                        pass  # Keep as string if parsing fails
-
-        return result
-
 
 from prompts.agent_prompt import STOP_SIGNAL, get_agent_system_prompt
 from tools.general_tools import (extract_conversation, extract_tool_messages,
@@ -345,7 +188,8 @@ class BaseAgent:
         initial_cash: float = 10000.0,
         init_date: str = "2025-10-13",
         market: str = "us",
-        verbose: bool = False
+        verbose: bool = False,
+        extra_llm_params: Optional[Dict[str, Any]] = None
     ):
         """
         Initialize BaseAgent
@@ -392,6 +236,7 @@ class BaseAgent:
         self.initial_cash = initial_cash
         self.init_date = init_date
         self.verbose = verbose
+        self.extra_llm_params = extra_llm_params or {}
 
         # Set MCP configuration
         self.mcp_config = mcp_config or self._get_default_mcp_config()
@@ -418,7 +263,7 @@ class BaseAgent:
         # Initialize components
         self.client: Optional[MultiServerMCPClient] = None
         self.tools: Optional[List] = None
-        self.model: Optional[ChatOpenAI | ChatGoogleGenerativeAI] = None
+        self.model: Optional[BaseChatModel] = None
         self.agent: Optional[Any] = None
 
         # Data paths
@@ -499,59 +344,21 @@ class BaseAgent:
             )
 
         try:
-            # Create AI model based on provider
-            if self.provider == "google":
-                # Validate Google configuration
-                if not self.google_api_key:
-                    raise ValueError(
-                        "❌ Google API key not set. Please configure GOOGLE_API_KEY in environment or config file."
-                    )
-                
-                self.model = ChatGoogleGenerativeAI(
-                    model=self.basemodel,
-                    api_key=(lambda: cast(str, self.google_api_key)),
-                    max_retries=3,
-                    timeout=30,
-                )
-                print(f"✅ Using Google AI provider with model: {self.basemodel}")
-            elif self.provider in ["openai", "openrouter"]:
-                # Validate OpenAI/OpenRouter configuration
-                if not self.openai_api_key:
-                    raise ValueError(
-                        "❌ OpenAI/OpenRouter API key not set. Please configure OPENAI_API_KEY in environment or config file."
-                    )
-                
-                # Set default URLs for each provider if not specified
-                if not self.openai_base_url:
-                    if self.provider == "openrouter":
-                        self.openai_base_url = "https://openrouter.ai/api/v1"
-                        print("ℹ️  Using default OpenRouter API URL")
-                    else:
-                        print("⚠️  OpenAI base URL not set, using OpenAI default")
+            # Create AI model using factory
+            api_key = self.google_api_key if self.provider == "google" else self.openai_api_key
+            if not api_key:
+                raise ValueError(f"❌ API key for {self.provider} not set. Please configure in environment or config file.")
 
-                # Create AI model - use custom DeepSeekChatOpenAI for DeepSeek models
-                # to handle tool_calls.args format differences (JSON string vs dict)
-                if "deepseek" in self.basemodel.lower():
-                    self.model = DeepSeekChatOpenAI(
-                        model=self.basemodel,
-                        base_url=self.openai_base_url,
-                        api_key=(lambda: cast(str, self.openai_api_key)),
-                        max_retries=3,
-                        timeout=30,
-                    )
-                else:
-                    self.model = ChatOpenAI(
-                        model=self.basemodel,
-                        base_url=self.openai_base_url,
-                        api_key=(lambda: cast(str, self.openai_api_key)),
-                        max_retries=3,
-                        timeout=30,
-                    )
-                
-                provider_name = "OpenRouter" if self.provider == "openrouter" else "OpenAI"
-                print(f"✅ Using {provider_name} provider with model: {self.basemodel}")
-            else:
-                raise ValueError(f"❌ Unsupported provider: {self.provider}. Supported providers: openai, openrouter, google")
+            self.model = ChatModelFactory.create_model(
+                provider=self.provider,
+                model_name=self.basemodel,
+                api_key=cast(str, api_key),
+                base_url=self.openai_base_url,
+                max_retries=self.max_retries,
+                timeout=30,
+                extra_params=self.extra_llm_params
+            )
+            print(f"✅ Using {self.provider} AI provider with model: {self.basemodel}")
         except Exception as e:
             raise RuntimeError(f"❌ Failed to initialize AI model: {e}")
 

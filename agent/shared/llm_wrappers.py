@@ -1,6 +1,8 @@
 import json
-from typing import Optional
+from typing import Optional, Dict, Any, List, Union, cast
 from langchain_openai import ChatOpenAI
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_core.language_models.chat_models import BaseChatModel
 
 class DeepSeekChatOpenAI(ChatOpenAI):
     """
@@ -27,16 +29,19 @@ class DeepSeekChatOpenAI(ChatOpenAI):
                 content = getattr(msg, "content", None) or ""
                 message_dicts.append({"role": role, "content": content})
         return message_dicts
+
     def _generate(self, messages: list, stop: Optional[list] = None, run_manager=None, **kwargs):
         """Override generation to fix tool_calls format in responses"""
         result = super()._generate(messages, stop, run_manager, **kwargs)
         self._fix_tool_calls(result)
         return result
+
     async def _agenerate(self, messages: list, stop: Optional[list] = None, run_manager=None, **kwargs):
         """Override async generation to fix tool_calls format in responses"""
         result = await super()._agenerate(messages, stop, run_manager, **kwargs)
         self._fix_tool_calls(result)
         return result
+
     def _fix_tool_calls(self, result):
         """Helper to fix tool_calls format in generated messages"""
         for generation in result.generations:
@@ -53,3 +58,79 @@ class DeepSeekChatOpenAI(ChatOpenAI):
                             func["arguments"] = json.loads(func["arguments"])
                         except json.JSONDecodeError:
                             pass
+
+class ChatModelFactory:
+    """
+    Factory class to create and configure LangChain chat models.
+    Supports OpenAI, OpenRouter, DeepSeek, and Google Gemini.
+    """
+
+    @staticmethod
+    def create_model(
+        provider: str,
+        model_name: str,
+        api_key: str,
+        base_url: Optional[str] = None,
+        temperature: float = 0.7,
+        max_retries: int = 3,
+        timeout: int = 30,
+        streaming: bool = False,
+        extra_params: Optional[Dict[str, Any]] = None,
+    ) -> Union[BaseChatModel, Any]:
+        """
+        Create a chat model based on provider and configurations.
+        """
+        extra_params = extra_params or {}
+        
+        if provider == "google":
+            # Gemini-specific settings
+            settings = {
+                "model": model_name,
+                "google_api_key": api_key,
+                "temperature": temperature,
+                "max_retries": max_retries,
+                "timeout": timeout,
+                "streaming": streaming,
+                "convert_system_message_to_human": extra_params.get("convert_system_message_to_human", False),
+            }
+            
+            # Add safety settings if provided
+            if "safety_settings" in extra_params:
+                settings["safety_settings"] = extra_params["safety_settings"]
+                
+            # Add transport if provided
+            if "transport" in extra_params:
+                settings["transport"] = extra_params["transport"]
+
+            model = ChatGoogleGenerativeAI(**settings)
+            
+            # Handle Search Grounding (if supported in langchain-google-genai)
+            if extra_params.get("google_search_grounding", False):
+                # Using tool grounding pattern for latest version
+                model = model.bind(tools=[{"google_search_retrieval": {}}])
+                
+            return model
+
+        elif provider in ["openai", "openrouter"]:
+            settings = {
+                "model": model_name,
+                "api_key": api_key,
+                "temperature": temperature,
+                "max_retries": max_retries,
+                "timeout": timeout,
+                "streaming": streaming,
+            }
+            
+            if base_url:
+                settings["base_url"] = base_url
+            elif provider == "openrouter":
+                settings["base_url"] = "https://openrouter.ai/api/v1"
+
+            # Use DeepSeek wrapper for DeepSeek models
+            if "deepseek" in model_name.lower():
+                return DeepSeekChatOpenAI(**settings)
+            
+            return ChatOpenAI(**settings)
+
+        else:
+            raise ValueError(f"Unsupported provider: {provider}")

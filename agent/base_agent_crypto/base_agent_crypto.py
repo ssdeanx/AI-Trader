@@ -10,19 +10,20 @@ import os
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, cast
 
 from dotenv import load_dotenv
 from pydantic import SecretStr
 from langchain.agents import create_agent
 from langchain_core.messages import AIMessage
+from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.utils.function_calling import convert_to_openai_tool
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from langchain_mcp_adapters.sessions import Connection
 from langchain_openai import ChatOpenAI
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.callbacks.manager import AsyncCallbackManagerForLLMRun, CallbackManagerForLLMRun
-from agent.shared.llm_wrappers import DeepSeekChatOpenAI
+from agent.shared.llm_wrappers import ChatModelFactory
 
 project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, project_root)
@@ -86,6 +87,7 @@ class BaseAgentCrypto:
         initial_cash: float = 10000.0,
         init_date: str = "2025-10-13",
         market: str = "crypto",
+        extra_llm_params: Optional[Dict[str, Any]] = None,
     ):
         """
         Initialize BaseAgentCrypto
@@ -123,6 +125,7 @@ class BaseAgentCrypto:
         self.base_delay = base_delay
         self.initial_cash = initial_cash
         self.init_date = init_date
+        self.extra_llm_params = extra_llm_params or {}
 
         # Set MCP configuration
         self.mcp_config = mcp_config or self._get_default_mcp_config()
@@ -149,7 +152,7 @@ class BaseAgentCrypto:
         # Initialize components
         self.client: Optional[MultiServerMCPClient] = None
         self.tools: Optional[List] = None
-        self.model: Optional[ChatOpenAI | ChatGoogleGenerativeAI] = None
+        self.model: Optional[Any] = None
         self.agent: Optional[Any] = None
 
         # Data paths
@@ -209,49 +212,21 @@ class BaseAgentCrypto:
             )
 
         try:
-            # Create AI model based on provider
-            if self.provider == "google":
-                # Validate Google configuration
-                if not self.google_api_key:
-                    raise ValueError(
-                        "❌ Google API key not set. Please configure GOOGLE_API_KEY in environment or config file."
-                    )
-                
-                self.model = ChatGoogleGenerativeAI(
-                    model=self.basemodel,
-                    api_key=SecretStr(self.google_api_key),
-                    max_retries=3,
-                    timeout=30,
-                )
-            elif self.provider in ["openai", "openrouter"]:
-                # Validate OpenAI configuration
-                if not self.openai_api_key:
-                    raise ValueError(
-                        "❌ OpenAI API key not set. Please configure OPENAI_API_KEY in environment or config file."
-                    )
-                if not self.openai_base_url:
-                    print("⚠️  OpenAI base URL not set, using default")
+            # Create AI model using factory
+            api_key = self.google_api_key if self.provider == "google" else self.openai_api_key
+            if not api_key:
+                raise ValueError(f"❌ API key for {self.provider} not set. Please configure in environment or config file.")
 
-                # Create AI model - use custom DeepSeekChatOpenAI for DeepSeek models
-                # to handle tool_calls.args format differences (JSON string vs dict)
-                if "deepseek" in self.basemodel.lower():
-                    self.model = DeepSeekChatOpenAI(
-                        model=self.basemodel,
-                        base_url=self.openai_base_url,
-                        api_key=SecretStr(self.openai_api_key),
-                        max_retries=3,
-                        timeout=30,
-                    )
-                else:
-                    self.model = ChatOpenAI(
-                        model=self.basemodel,
-                        base_url=self.openai_base_url,
-                        api_key=SecretStr(self.openai_api_key),
-                        max_retries=3,
-                        timeout=30,
-                    )
-            else:
-                raise ValueError(f"❌ Unsupported provider: {self.provider}. Supported providers: openai, openrouter, google")
+            self.model = ChatModelFactory.create_model(
+                provider=self.provider,
+                model_name=self.basemodel,
+                api_key=cast(str, api_key),
+                base_url=self.openai_base_url,
+                max_retries=self.max_retries,
+                timeout=30,
+                extra_params=self.extra_llm_params
+            )
+            print(f"✅ Using {self.provider} AI provider with model: {self.basemodel}")
         except Exception as e:
             raise RuntimeError(f"❌ Failed to initialize AI model: {e}")
 
