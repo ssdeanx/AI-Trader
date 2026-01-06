@@ -11,7 +11,6 @@ from typing import Dict, List, Optional, Any
 from pathlib import Path
 
 from langchain_mcp_adapters.client import MultiServerMCPClient
-from langchain_openai import ChatOpenAI
 from langchain.agents import create_agent
 from dotenv import load_dotenv
 
@@ -23,6 +22,7 @@ sys.path.insert(0, project_root)
 from tools.general_tools import extract_conversation, extract_tool_messages, get_config_value, write_config_value
 from tools.price_tools import add_no_trade_record
 from prompts.agent_prompt import get_agent_system_prompt, STOP_SIGNAL
+from agent.shared.llm_wrappers import ChatModelFactory
 
 # Load environment variables
 load_dotenv()
@@ -54,6 +54,7 @@ class BaseAgent_Hour(BaseAgent):
         
         # Update system prompt
         from langchain.agents import create_agent
+        assert self.model is not None, "Model must be initialized"
         self.agent = create_agent(
             self.model,
             tools=self.tools,
@@ -96,7 +97,7 @@ class BaseAgent_Hour(BaseAgent):
                 agent_response = extract_conversation(response, "final")
                 
                 # Check stop signal
-                if STOP_SIGNAL in agent_response:
+                if isinstance(agent_response, str) and STOP_SIGNAL in agent_response:
                     print("✅ Received stop signal, trading session ended")
                     print(agent_response)
                     self._log_message(log_file, [{"role": "assistant", "content": agent_response}])
