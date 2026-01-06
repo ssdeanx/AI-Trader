@@ -171,7 +171,7 @@ class AgentMemory:
 
         # Generate embedding
         model = get_embedding_model()
-        embedding = model.encode(text, normalize_embeddings=True)
+        embedding = np.array(model.encode(text, normalize_embeddings=True))
 
         # Cache it (with size limit)
         if len(self._embedding_cache) < 1000:
@@ -220,6 +220,7 @@ class AgentMemory:
 
         self.conn.commit()
         memory_id = cursor.lastrowid
+        assert memory_id is not None
 
         return memory_id
 

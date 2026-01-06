@@ -30,10 +30,18 @@
       "enabled": false
     },
     {
-      "name": "gemini-2.5-flash",
+      "name": "gemini-3-flash",
       "provider": "google",
-      "basemodel": "gemini-2.5-flash",
-      "signature": "gemini-2.5-flash",
+      "basemodel": "gemini-3-flash",
+      "signature": "gemini-3-flash",
+      "enabled": true,
+      "google_api_key": "Optional: YOUR_GOOGLE_API_KEY,you can write them in .env file"
+    },
+    {
+      "name": "gemini-2.5-flash-lite",
+      "provider": "google",
+      "basemodel": "gemini-2.5-flash-lite",
+      "signature": "gemini-2.5-flash-lite",
       "enabled": false,
       "google_api_key": "Optional: YOUR_GOOGLE_API_KEY,you can write them in .env file"
     },
@@ -51,7 +59,7 @@
       "provider": "openai",
       "basemodel": "openai/gpt-5",
       "signature": "gpt-5",
-      "enabled": true
+      "enabled": false
     }
   ],
   "agent_config": {

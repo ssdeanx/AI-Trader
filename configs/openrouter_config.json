@@ -14,9 +14,27 @@
       "enabled": true
     },
     {
-      "name": "gpt-4o",
-      "basemodel": "openai/gpt-4o",
-      "signature": "gpt-4o",
+      "name": "claude-5",
+      "basemodel": "anthropic/claude-5",
+      "signature": "claude-5",
+      "enabled": false
+    },
+    {
+      "name": "gpt-5",
+      "basemodel": "openai/gpt-5",
+      "signature": "gpt-5",
+      "enabled": false
+    },
+    {
+      "name": "gpt-5.2",
+      "basemodel": "openai/gpt-5.2",
+      "signature": "gpt-5.2",
+      "enabled": false
+    },
+    {
+      "name": "gpt-4o-mini",
+      "basemodel": "openai/gpt-4o-mini",
+      "signature": "gpt-4o-mini",
       "enabled": false
     },
     {
@@ -26,10 +44,10 @@
       "enabled": false
     },
     {
-      "name": "gemini-pro",
-      "basemodel": "google/gemini-pro-1.5",
-      "signature": "gemini-pro",
-      "enabled": false
+      "name": "gemini-3-flash",
+      "basemodel": "google/gemini-3-flash",
+      "signature": "gemini-3-flash",
+      "enabled": true
     },
     {
       "name": "llama-3.3-70b",

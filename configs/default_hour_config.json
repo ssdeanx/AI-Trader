@@ -14,6 +14,14 @@
       "openai_api_key": "Optional: YOUR_OPENAI_API_KEY,you can write them in .env file" 
     },
     {
+      "name": "claude-opus-4.5",
+      "basemodel": "anthropic/claude-opus-4.5",
+      "signature": "claude-opus-4.5",
+      "enabled": false,
+      "openai_base_url": "Optional: YOUR_OPENAI_BASE_URL,you can write them in .env file",
+      "openai_api_key": "Optional: YOUR_OPENAI_API_KEY,you can write them in .env file"
+    },
+    {
       "name": "deepseek-chat-v3.1",
       "basemodel": "deepseek/deepseek-chat-v3.1",
       "signature": "deepseek-chat-v3.1",
@@ -26,16 +34,28 @@
       "enabled": false
     },
     {
-      "name": "gemini-2.5-flash",
-      "basemodel": "google/gemini-2.5-flash",
-      "signature": "gemini-2.5-flash",
+      "name": "gemini-3-flash",
+      "basemodel": "google/gemini-3-flash",
+      "signature": "gemini-3-flash",
+      "enabled": true
+    },
+    {
+      "name": "gemini-2.5-flash-lite",
+      "basemodel": "google/gemini-2.5-flash-lite",
+      "signature": "gemini-2.5-flash-lite",
       "enabled": false
     },
     {
       "name": "gpt-5",
       "basemodel": "openai/gpt-5",
       "signature": "gpt-5",
-      "enabled": true
+      "enabled": false
+    },
+    {
+      "name": "gpt-5.2",
+      "basemodel": "openai/gpt-5.2",
+      "signature": "gpt-5.2",
+      "enabled": false
     }
   ],
   "agent_config": {

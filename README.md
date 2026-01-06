@@ -80,7 +80,7 @@ You just need to submit a PR that includes at least: `./agent/{your_strategy}.py
 
 - 🤖 **Fully Autonomous Decision-Making**: AI agents perform 100% independent analysis, decision-making, and execution without human intervention
 - 🛠️ **Pure Tool-Driven Architecture**: Built on MCP toolchain, enabling AI to complete all trading operations through standardized tool calls
-- 🏆 **Multi-Model Competition Arena**: Deploy multiple AI models (GPT, Claude, Qwen, etc.) for competitive trading
+- 🏆 **Multi-Model Competition Arena**: Deploy multiple AI models (GPT, Claude, Qwen, DeepSeek, etc.) for competitive trading
 - 📊 **Real-Time Performance Analytics**: Comprehensive trading records, position monitoring, and profit/loss analysis
 - 🔍 **Intelligent Market Intelligence**: Integrated Jina search for real-time market news and financial reports
 - ⚡ **MCP Toolchain Integration**: Modular tool ecosystem based on Model Context Protocol
@@ -581,9 +581,9 @@ python main.py configs/default_crypto_config.json
   },
   "models": [
     {
-      "name": "claude-3.7-sonnet",
-      "basemodel": "anthropic/claude-3.7-sonnet",
-      "signature": "claude-3.7-sonnet",
+      "name": "claude-5",
+      "basemodel": "anthropic/claude-5",
+      "signature": "claude-5",
       "enabled": true
     }
   ],
@@ -662,9 +662,9 @@ python main.py configs/default_crypto_config.json
   },
   "models": [
     {
-      "name": "claude-3.7-sonnet",
-      "basemodel": "anthropic/claude-3.7-sonnet",
-      "signature": "claude-3.7-sonnet",
+      "name": "gpt-5.2",
+      "basemodel": "openai/gpt-5.2",
+      "signature": "gpt-5.2",
       "enabled": true
     }
   ],

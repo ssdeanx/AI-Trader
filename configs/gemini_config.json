@@ -8,15 +8,27 @@
   },
   "models": [
     {
-      "name": "gemini-2.0-flash",
-      "basemodel": "gemini-2.0-flash-exp",
-      "signature": "gemini-2.0-flash",
+      "name": "gemini-3-flash",
+      "basemodel": "gemini-3.0-flash-exp",
+      "signature": "gemini-3-flash",
       "enabled": true
     },
     {
-      "name": "gemini-1.5-pro",
-      "basemodel": "gemini-1.5-pro",
-      "signature": "gemini-1.5-pro",
+      "name": "gemini-2.5-flash-lite",
+      "basemodel": "gemini-2.5-flash-lite-exp",
+      "signature": "gemini-2.5-flash-lite",
+      "enabled": true
+    },
+    {
+      "name": "gemini-2.5-flash",
+      "basemodel": "gemini-2.5-flash",
+      "signature": "gemini-2.5-flash",
+      "enabled": true
+    },
+    {
+      "name": "gemini-2.5-pro",
+      "basemodel": "gemini-2.5-pro",
+      "signature": "gemini-2.5-pro",
       "enabled": false
     }
   ],
